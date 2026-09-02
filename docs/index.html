@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rock Paper Scissors — ESP32-CAM + CNN | Anuprita Kaple</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --bg: #F1F5F9;
+    --panel: #FFFFFF;
+    --panel-2: #F8FAFC;
+    --line: #E2E8F0;
+    --text: #0F172A;
+    --text-dim: #475569;
+    --amber: #059669;
+    --amber-dim: rgba(5,150,105,0.10);
+    --navy: #0F172A;
+  }
+  * { box-sizing: border-box; }
+
+  .pipe-step, .gallery-card, .accuracy-banner, .layer, .meta-card {
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 1px 3px rgba(15,23,42,0.06);
+  }
+  .pipe-step { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .pipe-step:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(15,23,42,0.08); }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    line-height: 1.6;
+  }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; }
+
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+
+  /* Hero */
+  header.hero {
+    padding: 44px 0 36px 0;
+    border-bottom: 1px solid var(--line);
+    background:
+      linear-gradient(180deg, rgba(5,150,105,0.05), transparent 60%);
+  }
+  .eyebrow-line {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--amber); font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace;
+    font-size: 0.8rem; margin-bottom: 12px;
+  }
+  .eyebrow-line .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+  h1 {
+    font-size: 2.1rem; line-height: 1.15; margin: 0 0 12px 0;
+    font-weight: 800; letter-spacing: -0.02em;
+    max-width: 20ch;
+  }
+  .tagline { font-size: 1.02rem; color: var(--text-dim); max-width: 62ch; margin: 0 0 20px 0; }
+  .hero-links { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; border-radius: 8px; text-decoration: none;
+    font-weight: 600; font-size: 0.88rem; transition: all 0.15s ease;
+  }
+  .btn-primary { background: var(--amber); color: #FFFFFF; font-weight: 700; }
+  .btn-primary:hover { background: #047857; }
+  .btn-outline { border: 1px solid var(--line); color: var(--text); }
+  .btn-outline:hover { border-color: var(--amber); color: var(--amber); }
+
+  /* Sections */
+  section { padding: 32px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+  h2 {
+    font-size: 1.3rem; margin: 0 0 6px 0; font-weight: 800;
+  }
+  .section-sub { color: var(--text-dim); margin: 0 0 18px 0; max-width: 62ch; }
+
+  /* Pipeline */
+  .pipeline {
+    display: flex; align-items: stretch; gap: 0; flex-wrap: wrap;
+  }
+  .pipe-step {
+    flex: 1 1 150px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 14px;
+    position: relative;
+    min-width: 150px;
+  }
+  .pipe-step .num { font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; color: var(--amber); font-size: 0.78rem; }
+  .pipe-step h4 { margin: 8px 0 6px 0; font-size: 0.98rem; }
+  .pipe-step p { margin: 0; font-size: 0.84rem; color: var(--text-dim); }
+  .pipe-arrow {
+    display: flex; align-items: center; justify-content: center;
+    color: var(--amber); font-size: 1.3rem; padding: 0 6px;
+    flex: 0 0 auto;
+  }
+  @media (max-width: 700px) {
+    .pipeline { flex-direction: column; }
+    .pipe-arrow { transform: rotate(90deg); padding: 4px 0; }
+  }
+
+  /* Model architecture */
+  .stack { display: flex; flex-direction: column; gap: 8px; max-width: 460px; }
+  .layer {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--amber);
+    border-radius: 6px;
+    padding: 10px 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; font-size: 0.82rem;
+  }
+  .layer span.tag { color: var(--text-dim); font-size: 0.76rem; }
+
+  .model-meta {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px; margin-top: 16px;
+  }
+  .meta-card {
+    background: var(--panel-2); border-radius: 8px; padding: 10px 14px;
+    border: 1px solid var(--line);
+  }
+  .meta-card .k { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin-bottom: 4px; }
+  .meta-card .v { font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; font-size: 0.95rem; color: var(--amber); }
+
+  /* Repo table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th { text-align: left; color: var(--text-dim); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 12px; border-bottom: 1px solid var(--line); }
+  td { padding: 7px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  td.file { font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; color: var(--amber); white-space: nowrap; font-size: 0.82rem; }
+  .table-group-label { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); margin: 16px 0 8px 0; }
+
+  /* Setup steps */
+  ol.setup { padding-left: 0; list-style: none; counter-reset: step; }
+  ol.setup li {
+    counter-increment: step;
+    display: flex; gap: 14px; margin-bottom: 12px;
+  }
+  ol.setup li::before {
+    content: counter(step);
+    flex: 0 0 auto;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--amber-dim); color: var(--amber);
+    display: flex; align-items: center; justify-content: center;
+    font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; font-size: 0.78rem; font-weight: 700;
+  }
+  ol.setup li p { margin: 2px 0 0 0; }
+  ol.setup li code { background: var(--panel-2); padding: 2px 6px; border-radius: 6px; }
+
+  footer {
+    padding: 28px 0 44px 0; color: var(--text-dim); font-size: 0.86rem;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  footer a { color: var(--amber); text-decoration: none; }
+
+  /* Live gallery */
+  .accuracy-banner {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 20px; margin-bottom: 18px;
+  }
+  .accuracy-banner .big-num { font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; font-size: 1.9rem; color: var(--amber); font-weight: 700; }
+  .accuracy-banner .big-num-label { font-size: 0.74rem; color: var(--text-dim); }
+  .accuracy-split { display: flex; gap: 18px; font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; font-size: 0.82rem; }
+  .accuracy-split .split-item span.n { color: var(--text); font-weight: 700; }
+
+  .gallery-card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 18px; display: flex; gap: 22px; flex-wrap: wrap; align-items: center;
+  }
+  .gallery-img-wrap { flex: 0 0 auto; text-align: center; }
+  .gallery-img-wrap img {
+    width: 130px; height: 130px; image-rendering: pixelated;
+    border-radius: 8px; border: 1px solid var(--line);
+    background: #000;
+  }
+  .gallery-img-wrap .filename { font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; font-size: 0.68rem; color: var(--text-dim); margin-top: 6px; }
+
+  .gallery-verdict { flex: 1 1 240px; }
+  .verdict-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .verdict-label { font-size: 0.78rem; color: var(--text-dim); width: 88px; }
+  .verdict-value { font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; font-size: 1.05rem; font-weight: 700; text-transform: capitalize; }
+  .badge-ok, .badge-wrong {
+    font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; margin-left: 6px;
+  }
+  .badge-ok { background: rgba(5,150,105,0.12); color: #047857; font-weight: 700; }
+  .badge-wrong { background: rgba(220,38,38,0.10); color: #B91C1C; font-weight: 700; }
+
+  .conf-bars { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .conf-row { display: flex; align-items: center; gap: 10px; }
+  .conf-name { width: 68px; font-size: 0.78rem; color: var(--text-dim); text-transform: capitalize; }
+  .conf-track { flex: 1; height: 8px; background: var(--panel-2); border-radius: 6px; overflow: hidden; }
+  .conf-fill { height: 100%; background: var(--amber); border-radius: 6px; transition: width 0.3s ease; }
+  .conf-pct { width: 42px; text-align: right; font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; font-size: 0.76rem; color: var(--text-dim); }
+
+  .gallery-nav { display: flex; gap: 10px; margin-top: 20px; align-items: center; flex-wrap: wrap; }
+  .gallery-nav button {
+    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.85rem;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 6px; padding: 8px 14px; cursor: pointer;
+  }
+  .gallery-nav button:hover { border-color: var(--amber); color: var(--amber); }
+  .gallery-nav .counter { font-family: ui-monospace, SFMono-Regular, 'Roboto Mono', monospace; font-size: 0.8rem; color: var(--text-dim); }
+  .gallery-nav .filter-btn.active { border-color: var(--amber); color: var(--amber); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow-line"><span class="dot"></span> Cornell MEM 5400 · Embedded ML</div>
+    <h1>Rock, Paper, Scissors — camera &amp; CNN</h1>
+    <p class="tagline">An ESP32-CAM streams live video over WiFi to a convolutional neural network that classifies hand gestures in real time — no cloud, no phone app, just a microcontroller and 30 lines of training code.</p>
+    <div class="hero-links">
+      <a class="btn btn-primary" href="https://github.com/anuprita2000/RPS-ESP32-CNN" target="_blank" rel="noopener">View source on GitHub</a>
+      <a class="btn btn-outline" href="#how-it-works">See how it works ↓</a>
+    </div>
+  </header>
+
+  <section id="how-it-works">
+    <h2>How it works</h2>
+    <p class="section-sub">Five steps, split across two devices: the ESP32-CAM captures and streams, the laptop trains and classifies.</p>
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="num">01 · ON DEVICE</div>
+        <h4>Capture</h4>
+        <p>ESP32-CAM grabs a frame of a hand gesture.</p>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="num">02 · ON DEVICE</div>
+        <h4>Stream</h4>
+        <p>Frame is sent over WiFi via a MicroPython socket server.</p>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="num">03 · LAPTOP</div>
+        <h4>Receive</h4>
+        <p>Python client reads the frame size header, then the image bytes.</p>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="num">04 · LAPTOP</div>
+        <h4>Classify</h4>
+        <p>A trained CNN scores the frame: rock, paper, or scissors.</p>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="num">05 · LAPTOP</div>
+        <h4>Display</h4>
+        <p>Prediction and confidence shown live via OpenCV.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>See the real model, on real images</h2>
+    <p class="section-sub">These aren't staged. They're 34 actual training-set photos captured by the ESP32-CAM, and the numbers below are this repo's real <code>prs_cnn_esp.h5</code> making real predictions on them — misses included.</p>
+
+    <div class="accuracy-banner">
+      <div>
+        <div class="big-num" id="overall-acc">—</div>
+        <div class="big-num-label">correct overall</div>
+      </div>
+      <div class="accuracy-split">
+        <div class="split-item">Rock: <span class="n" id="rock-acc">—</span></div>
+        <div class="split-item">Paper: <span class="n" id="paper-acc">—</span></div>
+        <div class="split-item">Scissors: <span class="n" id="scissors-acc">—</span></div>
+      </div>
+    </div>
+
+    <div class="gallery-nav" style="margin-top:0; margin-bottom:16px;">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="rock">Rock only</button>
+      <button class="filter-btn" data-filter="paper">Paper only</button>
+      <button class="filter-btn" data-filter="scissors">Scissors only</button>
+    </div>
+
+    <div class="gallery-card">
+      <div class="gallery-img-wrap">
+        <img id="g-img" src="" alt="Sample hand gesture">
+        <div class="filename" id="g-filename">—</div>
+      </div>
+      <div class="gallery-verdict">
+        <div class="verdict-row">
+          <span class="verdict-label">Actual gesture</span>
+          <span class="verdict-value" id="g-true">—</span>
+        </div>
+        <div class="verdict-row">
+          <span class="verdict-label">Model guessed</span>
+          <span class="verdict-value" id="g-pred">—</span>
+          <span id="g-badge"></span>
+        </div>
+        <div class="conf-bars">
+          <div class="conf-row"><span class="conf-name">Rock</span><div class="conf-track"><div class="conf-fill" id="bar-rock"></div></div><span class="conf-pct" id="pct-rock"></span></div>
+          <div class="conf-row"><span class="conf-name">Paper</span><div class="conf-track"><div class="conf-fill" id="bar-paper"></div></div><span class="conf-pct" id="pct-paper"></span></div>
+          <div class="conf-row"><span class="conf-name">Scissors</span><div class="conf-track"><div class="conf-fill" id="bar-scissors"></div></div><span class="conf-pct" id="pct-scissors"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="gallery-nav">
+      <button id="g-prev">← Previous</button>
+      <span class="counter" id="g-counter">1 / 34</span>
+      <button id="g-next">Next →</button>
+    </div>
+    <p class="section-sub" style="margin-top:20px; margin-bottom:0;">The model effectively behaves like a 2-class classifier: rock's blocky, high-contrast silhouette is easy to separate (91% correct), but paper and scissors both collapse toward "paper" on this low-resolution, low-contrast ESP32 feed — paper still gets picked correctly some of the time (27%), while scissors is misread as paper in every single sample tested (0/12). That's a concrete, useful failure mode: the next iteration needs either more contrastive examples of paper vs. scissors, or a preprocessing step that sharpens edges before the 32×32 downsample erases them.</p>
+  </section>
+
+  <section>
+    <h2>The model</h2>
+    <p class="section-sub">A small CNN, deliberately — the ESP32 can't run inference itself, so the network only needs to be light enough to train fast and generalize on a few hundred hand photos.</p>
+    <div class="stack">
+      <div class="layer"><span>Input</span><span class="tag">32×32×1 grayscale</span></div>
+      <div class="layer"><span>Conv2D · 8 filters</span><span class="tag">3×3, ReLU</span></div>
+      <div class="layer"><span>MaxPooling2D</span><span class="tag">2×2</span></div>
+      <div class="layer"><span>Conv2D · 16 filters</span><span class="tag">3×3, ReLU</span></div>
+      <div class="layer"><span>MaxPooling2D</span><span class="tag">2×2</span></div>
+      <div class="layer"><span>Flatten → Dropout</span><span class="tag">0.5</span></div>
+      <div class="layer"><span>Dense · 3</span><span class="tag">softmax</span></div>
+    </div>
+    <div class="model-meta">
+      <div class="meta-card"><div class="k">Framework</div><div class="v">TensorFlow / Keras</div></div>
+      <div class="meta-card"><div class="k">Classes</div><div class="v">rock · paper · scissors</div></div>
+      <div class="meta-card"><div class="k">Training</div><div class="v">30 epochs</div></div>
+      <div class="meta-card"><div class="k">Model file</div><div class="v">prs_cnn_esp.h5</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Repository documentation</h2>
+    <p class="section-sub">Every script in the repo, grouped by which device it runs on — pulled directly from the project README.</p>
+
+    <div class="table-group-label">Runs on the laptop</div>
+    <table>
+      <tr><th>File</th><th>What it does</th></tr>
+      <tr><td class="file">train_esp.py</td><td>Trains the CNN on images captured from the ESP32 camera</td></tr>
+      <tr><td class="file">train_cnn.py</td><td>General-purpose CNN training script</td></tr>
+      <tr><td class="file">test_cnn.py</td><td>Evaluates a trained model against held-out images</td></tr>
+      <tr><td class="file">classify_stream.py</td><td>Runs real-time classification on the incoming ESP32 stream</td></tr>
+      <tr><td class="file">receive_stream.py</td><td>Receives and displays the raw video stream</td></tr>
+      <tr><td class="file">collect_from_esp.py</td><td>Collects labeled training images directly from the ESP32</td></tr>
+      <tr><td class="file">collect_images.py / collect_paper.py</td><td>Utilities for building the labeled training set</td></tr>
+    </table>
+
+    <div class="table-group-label">Runs on the ESP32-CAM</div>
+    <table>
+      <tr><th>File</th><th>What it does</th></tr>
+      <tr><td class="file">stream_server.py</td><td>MicroPython HTTP/socket server that streams camera frames</td></tr>
+      <tr><td class="file">camera_test.py / capturetest.py</td><td>Verify the camera module is capturing correctly</td></tr>
+      <tr><td class="file">Wifi.py</td><td>Connects the board to a WiFi network</td></tr>
+      <tr><td class="file">image_preprocessing.py</td><td>On-device resizing/formatting before a frame is sent</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Running it yourself</h2>
+    <ol class="setup">
+      <li><p>Flash MicroPython onto the ESP32-CAM, then upload the ESP32-side scripts (<code>stream_server.py</code>, <code>Wifi.py</code>, <code>camera_test.py</code>).</p></li>
+      <li><p>Connect the board to a WiFi network using <code>Wifi.py</code>.</p></li>
+      <li><p>Run <code>stream_server.py</code> on the ESP32 to start streaming frames.</p></li>
+      <li><p>On the laptop, run <code>classify_stream.py</code> — it connects to the ESP32's IP, receives frames, and classifies each one live.</p></li>
+    </ol>
+  </section>
+
+  <footer>
+    <div>Anuprita Kaple · Cornell MEM 5400, 2026</div>
+    <div><a href="https://github.com/anuprita2000/RPS-ESP32-CNN" target="_blank" rel="noopener">Full source & README on GitHub →</a></div>
+  </footer>
+</div>
+
+
+<script>
+const RESULTS = [{"file":"rock_0.jpg","true":"rock","pred":"paper","correct":false,"rock":0.214,"paper":0.394,"scissors":0.393,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABQYHAwT/xAAsEAACAQMDAwIEBwAAAAAAAAABAgMEBREAEiEGEzFBUQcUIpFCYXGBgqHB/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AF+hx3BlmP8ALXDcr5JUXhLUlK8qO7RRqgPcdxhQo85yx4AGTjGtY2aGcoc5Bx4xre00dwSgu91o7XLXSxVKgtEwD0oYOwnHqduPwnIJBwcY0FX6Qq1ltMJViyZIBz7cf5pmhqAFxnxpE6RqYG6WoK+mkUxVEkwK+oYPu+2HX9wdGlrwB50EkroC1UHUgbhzo10ZdKnp6/Qyb8wVLBZFCggnjAOR+ugIuFLJElwWVflTCJu4eBsxu3HPjg6Wel+vU6kaopIY1o53+mDuKXBOCQf6Jx+XnQXvqOGmpLRFJaYneF7tIkcaKqKiSLuBHPCqIyDjnxgemgcj1gRu4iLg8bXJ+/A0H+FtbP1ff6CquawinEMyW9e8du90G2U4wfcYbPk/SpGWbKqj7O+LtdtlY7l24w2ecj3znQf/2Q=="},{"file":"rock_5.jpg","true":"rock","pred":"rock","correct":true,"rock":0.534,"paper":0.308,"scissors":0.158,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAwEBAQAAAAAAAAAAAAAABAUHBgEC/8QAKxAAAgIBAwIEBQUAAAAAAAAAAQIDEQQABRIGMSEiQXEHExSRoVFhgYKx/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AFu3V8wWzn+2juqZRFs8YjUNJI/FQW8QKsmvXtX86UQu0M/E2CDRsVrnUv1edigYfESY0bPbC+XKxX40Gn+E3VG65fVM2y5UxyQ6hvFqESoj3xHYXx8fbVhjnAFaiPwY2XMw81+oMiUvOyGOUhfKoYMAo9PAM37m/tUjm0O+gjudjlspWQjzaO2yMLJkQyAEtGFB/P8AtaAxMyHMMOVjuHhkjV0aiLUiwaPbvp5seK8j4+XlAkLzknVfQLRIH6+Gg0m0YOVtm2Q4KcHZbaTzUOXoPXsKHveveQ2b8t+aIlHy8HLWPsNE9OZybxs2Duy8uOdjpkgNVgOOXjXvpF1Z1z0vse+QbHm56/XTOivGlVArdmkYkKo7GruiDVG9B//Z"},{"file":"rock_6.jpg","true":"rock","pred":"rock","correct":true,"rock":0.454,"paper":0.372,"scissors":0.175,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABQcBBAYC/8QAKxAAAgEDAwIGAAcAAAAAAAAAAQIDBAURABIhBjEHE0FRkfAUImGBgqHh/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/ABluI8wZZz/LV7qWVRRQU0cbNLPu2tnhQoySfvvoRCzQz7GyCpxyMa56iNzqI1mtxRmgjOVc44bIOOO/A/vQbPwo6nulVdqiy3B/OWNiY3AUbBtXjgDjOR8aaqTgL30oPBa0S2ynqblXSmWWopwm8jvKGQnHsNuf9zpiGtwO+gTtbTl6pWUqN36aJWqEbaiCTBZwADj79OhlLWQ1hhqoGDwyxq6NgjKkZB559dH+nadmWCvdPNAied0D8HbhsZ547++g0lFR1Vuo4beio5gGJCWwC/G70z6AftqKhq3Y/mRxpg/l2OWyPgY1Y6Xq4rnYrfcolZY6ymjqEVu4DgED4OgnVnXHS1jvkFjrq8fjZWUOiDIgDAkNI3ZR24znBBxg50H/2Q=="},{"file":"rock_7.jpg","true":"rock","pred":"rock","correct":true,"rock":0.457,"paper":0.375,"scissors":0.168,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABQcBBAYC/8QALBAAAQMDAwQBAQkAAAAAAAAAAQIDEQAEBQYhMRITIkGBBxQkQmFxgqHB8P/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwAXjiO4JUs/uq7qZ37nb2zSCXHurc7hISJJ5/T4mhTKlMvlCpBSqNxFcajGTuGg/jigrZbjpWYEKkKjY77Cg130l1Hk3szc4e+dcuEBwqSoqHh4p2iOJBED+6baHwE80nvovhncXbP5K9dU+8+x0KdV+J0KRwPXjNMU3kDmgTt6wV3QUkjy9UTxTI7b9u4AVLgAx6P+/mhlreM3hZumFdbLqErQqCJSRIMHjmj+m7YqSxfqbDgDS33EBex6YURO+3O+9Bo7Ozu8fZs49CW1FgQ4eqB3IHV6n1HxUPqvQhXcbbRB8ehZVI+QKs6ZvG8phLDJthQReWyLhIVyAsBQB/ODQPVmudL4POMYO9vx9udUgLQgCGArhTijASODEzBBiDNB/9k="},{"file":"rock_75.jpg","true":"rock","pred":"rock","correct":true,"rock":0.541,"paper":0.257,"scissors":0.202,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABQYCAwcE/8QAKRAAAgIBAgUDBAMAAAAAAAAAAQIDEQQABQYSITFBEyJhBxRRoTKRsv/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwBewSA4tm/vR2fB+/whHGfd+STpZjZopSpsEGuorRR94nwsSN8eNHdpAluTyoOtsa7gVoNP4deSPb44pQQVNCzej0c4A76UdszoZcTHyYJRJBPGJImsc1WRTAE8rAggjwR5FHRFc2l/loMizYebIDKR7tU7ntk2TjeksoRmUrGwJsN0Yf51yZPEezRTYrzbhDGMlEaIMSCVYWGI7qPk0NE8mfJEixyoI3ARxaUytXWr+bGgceCxNL9Peb7RIZ8fOVKMpNl1cueg6D2IKrxfmhZK+aEPqKijxysWv9DUuGt427H4aODk5UUUmXnxNApPR25JAR8Ht+vyNE8iC16aD//Z"},{"file":"rock_76.jpg","true":"rock","pred":"rock","correct":true,"rock":0.445,"paper":0.322,"scissors":0.233,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAABAAMBAAAAAAAAAAAAAAAABQQGBwP/xAAqEAACAQMCBAQHAAAAAAAAAAABAgMABBEFIQYSEzEHQVGBFCIjcZGhwf/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCt2RHOMs35p6ayN9ZdKM4b1JNVlGaKYqcgg+YxSj6zLYWqPBbG5ld+VYw2MnBP8oNQ4deSPT44pcgqcDJztTsc4AG9UvQtVjuLSNw8fUGRJGkgcxMGIIJH2yPUEHzpcXoA3OKDIbyEtcBlI38q7fBuwji5wpkJVGDEFWKkBu3cd/agpuLdATUIIX1KJXmjR1yGACsMgscYXbfBwaauLi7V+jIvSblRsFcEHufbNA94fm/g4bu9PmthHdx3Uazkv8snIhVXUjffmbYj03paZ70KeokajOxVy2f0KkcO31rDpeo3Fz0/rxJggZJfqJjlHckgtsNznG9TJo0liDIQykZBG4IoP//Z"},{"file":"rock_77.jpg","true":"rock","pred":"rock","correct":true,"rock":0.439,"paper":0.324,"scissors":0.237,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAABAQEBAQAAAAAAAAAAAAAABQYDBwT/xAApEAACAgEDAgUEAwAAAAAAAAABAgMRBAAhMQUSBhMiQVEHFWGBcZGh/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AJvCI7hbN/enpsI52F5UZpvkk6mUZopSpsEH3FaV+8vgY8ckeO2Q7v2hFajwT8H40HTvDryR4EcUoIKmhZvbTsc9DnUf0fqCyY6uCB6mQgOrFSrFSDRNHa/4IPBGlBmgDnQchzIi2QGUjfW64kjdkYkVXfuWNrPoYowDfq7/AF7aBm8W9ATPghk6lErzRpItqwAVhYLGqXbejR0zkz5IcJJEEYKjhStENW9X+bGgo/p956+EsrGfp4x86HNjjl72BFKjAFWG9E87C6XSUz5wVvMSNR7FXLX/AINb9CzcOLpGfk5khTv8plESlzJKXCL6QCTs7ccc8A69kiRzQLJEyyI6hlZTYYHgg/Gg/9k="},{"file":"rock_78.jpg","true":"rock","pred":"rock","correct":true,"rock":0.454,"paper":0.317,"scissors":0.229,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAABAQEBAQAAAAAAAAAAAAAABQYEBwP/xAApEAACAQMDAwMEAwAAAAAAAAABAgMABBEFITESIkEGE1EHFDKhM4HB/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AJqyI6x3Mf7p+ayN9ZCKM93ySamY2MUpU5yD5GKVOtNp9qkqW73Ls3SI1OCdif8AKDp3p15I7COKUEFTgZOadjnwOaktOvkKsEcMEkePIYE5Viu4BOOM4O+CD5FIi9AHNByG8hLXAZSO7xXsLWdmSJGRXcOI5CT2OUIU/O2SdsccigpvVmgJfwRSajEryxo65DY6WHUCxxhdjnfFNXNxdJIqPGEcBHAK7g+cfsUFH9P1lf0ldBtO+1vLW+SFw0px+DA4GOOwHON9uPKMz3oU+4kajO3SxbP6FadEvLSPRb64u7hIDJLCwVVLe7IX9tQAOP5M+a1SJHNCskbK6MoZWU5BB4INB//Z"},{"file":"rock_79.jpg","true":"rock","pred":"rock","correct":true,"rock":0.483,"paper":0.278,"scissors":0.239,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAABQYHAP/EACkQAAIBAwIEBgMBAAAAAAAAAAECAwAEEQUhBhIxQQcTUWGBwRQiMrH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AmrIgOMsx+aemsfzrLyozhvcmpmNjFKVOQQcdMUwmqtZafJcIod0AwCe5IH3QaZw68kdhHFKCCpwMnO1OxzgDrUZw5qa3+i2+pw5NvMzBDnoQSMH0JAB+aWF6AM5oMhvISbgMpH7DpXXtlcyW8USFSrzIHHbGds/OKJn4s0FL+CJ9RiVpY0kXKtgKwyCxxhdjnfG1NTXF0HMEqeUWVCQVwVPfGfQ/5QP+H9vJbaXq9s9pcqY5kMRLgokzHLAnGeUgMdu6jsKVme9CnzERR2KOW+hQHhpxHe8SiPTtOtngiCyX9zNPHyJMoRuVRt/R5ubbGMd+lWMiLNAsiBgGUMAylTv6g7g+xoP/2Q=="},{"file":"rock_8.jpg","true":"rock","pred":"rock","correct":true,"rock":0.53,"paper":0.314,"scissors":0.155,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGQABAQADAQAAAAAAAAAAAAAABQcCAwQG/8QAKhAAAQQBBAECBQUAAAAAAAAAAQIDBBEFAAYSMSFBkQcTInGxUWKBofD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8ALx5HMWpR/nXfuV1CccywgEvPEhPkniALKvsPHvohlSmXyk2CFV5Fax3I9kFxhIhMh4xmlHh6kKsGvYf3oPWfCTc2Vmbiews94vqoqbTYAbQlBV1X7T5/Piq2h8BPfWoh8GsTPjZFzcMtQL7jRQ5xPhAPIAAd9KIJ1VDMoXegjs5hSpKVJI+odaSxbKQ1IacrmUgA/f8Ax99GRZjEwsyo6ubLqErQqiLSRYNHrvT+CiLU9HflqKEkKW9QvgEkE9foPxoHsJFmQMOzDS02XL5unnQuqA8D0H51tfXNCF/MbbRR+ngsqv3ArXVtucnL4eDlhyqdHRJHIAGljkLrx66C3bvjbGDzcfBzZwM55aErbQBTCVdLcUSEpHRq7og1RvQf/9k="},{"file":"rock_9.jpg","true":"rock","pred":"rock","correct":true,"rock":0.465,"paper":0.365,"scissors":0.171,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABQcBBAYD/8QAKRAAAQQABAUEAwEAAAAAAAAAAQIDBBEABQYhEhMiMXEHFEGBMlGS8P/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwARl9cYtSv6xd1K+hvL22UoUp50EovcDhIu/o4FMqUy+UmwQa3FY46klTA37qG2Hg0gNqQVVRJB2wDA9I9TSs2irhzUjnMlSulNBICqAu/0U/Hx3N7Mht+gN8J70byyVlkeXNmEKclFKlEJoAkAED+Rhj+8oflgFBOYKpIUkjqGL+XREPwpMdPCp1awB52H+8YHxZjMwsymFcbLjaVoVRFpIsGjuO+D+RhcYozFzgAQ0HiCklJXvQNb0VUPvAaGGxJjwY8VpDR5Seo8exUe52HgfWIfVNCFcxDaN+koWVX5sCsWtMS2szyOBmTQUG5cZD6QruAsWAfo4zut9e6d09m7GTyXi/McUOc01VsIIJClE0kfG13Ruu1h/9k="},{"file":"paper_17.jpg","true":"paper","pred":"paper","correct":true,"rock":0.394,"paper":0.396,"scissors":0.21,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABAUGBwL/xAAqEAACAQMDAQcFAQAAAAAAAAABAgMABBEFEiFhBiIxQlGBkRMUMnFywf/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCMtSAwyzfNOLi1W6sQobacgAkk8k4qfRjHIVOQQcelFtLJPPbx5ASMibduxja6g59moNW7NvJHp8cUoIKnAyc0+jmwPGpTTL4G3t1ZQrJDHG2PMVQKWPqSRk9SaY/eAD8qDIbqItMGUjkUelpbrpbvdQiVm3Iv8kLkdMkDnoOaAtrmK6EVxC26KRFdDjGVIyDz+6oNEMElpYT3jhVSYvL3cgAE/I549ePGgc2cN8sETOEeWRFkbv8AALAHHA6/NdzNegH6qRpzxsct/gozs/eQ6rptrqkMYijvIVuEjHkDjIHsDRV7CCOKD//Z"},{"file":"paper_18.jpg","true":"paper","pred":"paper","correct":true,"rock":0.38,"paper":0.421,"scissors":0.199,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABAUBBgcC/8QALhAAAQMDAgIHCQAAAAAAAAAAAQIDBAARIQUSEzEUIjJRgZGhBkFCYWJjcZLw/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AKVFI3AlSj40RrcplMdMba4XFAEcyMm2fKgEKLbhSbgg++okDivFSVuodV9s7TbHO31D9T3Gg2bRkrisqiLVu4LqkA7rggG2PKnTTwA51U9NIgNogFvhKjJDS03v1kiyj4kE0yE0AdqgyduKHp6bjcm25QHPH8KKhy2GNXiOKY6UGnkr2WwqxyL8hi4+VC6XNYkDitOdR9gKbWLg7TY3zyxTkdA0yEQAkyHGtrKUjskqF1nNxi9j3+NA5htSQ2nhpSbj4ja35xXbypgBDqEIF8bFlV/QWon2YkNaho0Ge2CESo6Hkg8wFC4HrRs1kEYoP//Z"},{"file":"paper_19.jpg","true":"paper","pred":"rock","correct":false,"rock":0.41,"paper":0.393,"scissors":0.196,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAABAUBBgcD/8QAKhAAAgEDAgQGAgMAAAAAAAAAAQIDAAQREjEFIUGBBhMyUWGRFCNxocH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8ApVqRqBLMe9F8cuIEsRGdTSldSqDknBH11+jS1GMchU5BB61N3+0+cwBIACE5GcZOAf5A+/ig2Dw5Io4VahJDIpijbV01FBqA+A2R270+imAG+Kpvh5xZcKs7MsjNFENTLuWbLnPyCxHanAvQBvQZKLXz75BureoD2FETS2ouYo5/MlRZVysaZYEHIGNs9xmuXB72Gd1uIXyksGqNtuRAIPP4pzFBY8PsfyHCtKyssQ6s55Z2O2c8/bHWgdQC7mVbkCNmmy5Hp0kk9AMDt0IqZmvQCJUjTny0OW/wUT4YuIuI8Gsb+MEJdW6TKG3AYZA/ujb2EEcqD//Z"},{"file":"paper_85.jpg","true":"paper","pred":"paper","correct":true,"rock":0.396,"paper":0.416,"scissors":0.188,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAABQYEB//EACsQAAIBAwIFAwMFAAAAAAAAAAECAwQFEQASEyEiMWEGQYEUUXEyUpGhwf/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdoyAw6mPzpS5xcW3KqAknPdj7KW/zHzoNGMcpU5BBxzGNLUzyT8KNclQcsAPb35+3TuHzoLz0LchU2SnhUhxACpk4m8vl2YZ+2FKgeMarIJsAc9QXot4qOwJS/T8CVamQlRgrsARVwfO0nxkapIqsAfq0HIaqEtOGUjq8aZtEPAo55nbAXaSQM4HPQtLVQ1YiqYG3xSoro2CMqRkHn+dO2t3a31CTQtvbqZMdtqjd/YOgVssFwkpxWSIAikxU6hyAcjLMeXPG7GPIP3GtrGtUESoiD22OWz/IGNbrBVQXCzW+opXLUstOssXcbgwzuwexIx8AfbWOuv8A6fS9rZHutKtwJUcAv1ZYEqPyQO3lf3DIf//Z"},{"file":"paper_86.jpg","true":"paper","pred":"rock","correct":false,"rock":0.387,"paper":0.372,"scissors":0.241,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAwUGBwL/xAArEAACAgEDAwIEBwAAAAAAAAABAgMRBAAFIQYSMSJBUWFxgRMUFTJScqH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8An8MgMPUx++m24xRSbZy5DUe2ySTQJofYHSFGaOQqbBB+FaakvNgGRxkCBLt4q4Pj+1+47RfB5F8hpvS8r/pOP393ayK6FvdGUFTXtwR51QRTAVzqO6fdsPbcXGmdXlWMM7KxPLequfFAha9u2vbTpcsAXegxvKhLZAKlbahXz0+/Dn/MJhYmG08cYVGAIBY2AByfnyav66nEy48qOHJxmDRyKskbURY/cDR1STbpk7dIsMTIs8qJIZVsPHfgA15qjYugfj4ChjXMkYSkI8zktKb7VLEkmgBwNdOc0KRKkaUfT2OWv62Bo3SuVFuWy4G4xAiPLxknUN5AYWAfsdA3LqHp6HeU2WXdsVdwZkQY/fb9z2VHHgmv9H8hYf/Z"},{"file":"paper_87.jpg","true":"paper","pred":"rock","correct":false,"rock":0.406,"paper":0.372,"scissors":0.222,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAwUGBwH/xAAnEAACAQMDBAICAwAAAAAAAAABAgMEESEABRIGIjFBUZETcSRhof/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCfoyAw7m+9NtzSF9sHOTgThbnybXt+zbSBGMchU3BBtkW03CtNt7VBSQpH281Pi5sT8m2DgevI0GndNu6bZTh+XFkWSMtglGUFcesEafRS296jun5WpdspKWZ1eWOIB2UMLsckEHOL8f0Bp0lWAL30GN1ULPUAoVBbGfnT5Y6h6xKKlpfzRR8YyPHI+LZPu+Tb171OR1cdVHDU0zc45FWSNrEXB7gc51SVW5VFB/GQoJZ40kZwDyQNfHjzaxuL2B+fAUSrWSP+VuEk8hLTNcKpckk2AGBrrmtCsJkjSx7eDlr/AGBo3SlVFuWy0G4xAiOrpknUN5AYXA+joO49Q9PRbymyy7tSjcGZEFPzu3JgSo/om3+j5Fw//9k="},{"file":"paper_90.jpg","true":"paper","pred":"rock","correct":false,"rock":0.497,"paper":0.331,"scissors":0.172,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAABgUEB//EACsQAAICAQMBBwMFAAAAAAAAAAECAxEEAAUSIQYTFCIxQXFRYZGBgpKh0f/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwAtgI8syRxEtIzAItinN9F6kAWel30u9IsvavFbQO5dmIlKEkGuJAdDdkdVav2H76N7XQ3GOKRuHJinIpfEkUGqxdGj6+2lk8+RjSy5OSWZJVLys8nIx+YnjQHEcTzHT29zZ0C/s3JJHt8cUtgqa6m9X4pqA66K4sq4sOJDbE+Dx3JY2SzQoxJPyTqhHmCr5aDj+TE3iFdGon+jphmHxXZ6OV1Ad7LFfQUoFdfhtDsbJiyliyIW5xSIro1VakWDR+dOOwkR3XvNmygIZiA6BxVEqL/SwdBT3Pb5MPD2Y45WV5tujklZnI83JgB7+iqo6fTWMnMCnvVjT6cHLX+QNXtwUrmRYxlEi40CQihQBA8w/kW1izjjxgCWWOMn05MBfUf6PzoP/9k="},{"file":"paper_91.jpg","true":"paper","pred":"rock","correct":false,"rock":0.484,"paper":0.334,"scissors":0.181,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAABgUEB//EACsQAAICAQMCBAYDAQAAAAAAAAECAxEEAAUSITEGEyJBFFFhcZGhFYGC8P/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwAvt0ck2TFFESZGcBQT0Y+y9xVmlu+l37avz7VJlbUeDWyTNGTZPQ+uM9Og5Iw6WT6W0e2kL/JxQynjb8QWW+LEUrVYujR7+2lRL4j83BSBktgWAEPUlV4gBVC+ofQV366Bh4beSPb44pbBU0LN9NX4pgAOui2PKuNFiQ+q/gsZiWayWaFCST8ySTrfHmAC+Wg4/kxt8QsiNRP5B+el+YRk+Ho5iihnJLcewoAV+m0PxsmLKWLIhbnFIiujVVqRYNH76c+BITu3m7NlKIpujoGWqJUX/Vg6Cjue3TYeLtDQv5zz7fHJIXfsbZQO3sqqPzrIxzAp81Y0o9ODlr+9gau7gnHOTHMvmDHhSH6KVFMB/rl+9Y8448QHmyxx325MBf8A1jQf/9k="},{"file":"paper_92.jpg","true":"paper","pred":"rock","correct":false,"rock":0.496,"paper":0.332,"scissors":0.172,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAABgUEB//EACsQAAICAQMCAwgDAAAAAAAAAAECAxEEAAUSITEGFFETIjJBUmFxgZKh8P/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwAvt0bTZEUSSBXd1VSx90knoD6A9r+V6v5O2rm7UfLyFykpXkQfhYB4zd11ViOn0n76PbTQ3KOKQlQzFLK3RIIBr7Eg6UZWTkQZM2ZOg4OpM5MpcoeV1XUAg87r5V60AZeG3lj2+OKWwVNCzfTV+KYADrorhyjGgxIuTEnDx3YsbJZoUYkn8k6oR5gq+Wg5BkxN5hZEYAmv0dL81vN+Ho5nFu3xFT0FKAB+Oh0OxsmLKWLIhbnFIiujURakWDR/OnPgSI7sZdlygIpqDoGXsSvX9WDoKe57c+Fh7MMYLI0u3JJKzORbcnH37KFHT01iY5gU+1WNAO3Fi1/0K1e3BazI8YyiRcaFIRQoKVHvD+XLWPOMEaj2sscd9uTAf7uNB//Z"},{"file":"paper_93.jpg","true":"paper","pred":"rock","correct":false,"rock":0.481,"paper":0.334,"scissors":0.185,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAABgUEB//EAC0QAAICAQMCBAMJAAAAAAAAAAECAxEEAAUhEjEGEyJRYXGBFCQyQUJSkaHw/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AC+ArSTxIkoR2dVVnPpskAX8Pf4avy7aM/Z2kx5Q4WUKGJ7o6h4yOefSStgV6fc6PbSypuUcc3UFZvLY0LF8WL4sXY0l+1GHIfcJY+tJI2OXU5YxyBj6f1KSrdd1XsO/ANfDckse3xxSggqeLN8avxTAAc6K4kq40OJECxJw8d2JNks0KMST8ydUI8wV+IaDj+VETOHUgXpflMcrw9HM4Bc31lTwKUACvbg/yND8bJiyliyIW64pEV0aiLUiwaPz058BRHdpJdly1MUpAdAy9iRz9LB0FPdNubCxNmGIFdpdvSSVmc8t1OPj2AUce2sTHNCnzVjSu3Qxa/6FauZq/fVh62YQRrCA3ZSoogD8h1An63rLnGCNR5sqJf7mA/3fQf/Z"},{"file":"paper_94.jpg","true":"paper","pred":"rock","correct":false,"rock":0.461,"paper":0.351,"scissors":0.188,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAABAAMBAAAAAAAAAAAAAAAABgMEBQf/xAAtEAACAgEDAQYEBwAAAAAAAAABAgMRBAASIQUTMUFRYXEGByKBFBVSgpGhwf/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwAv05TJkwoJNrM6qrM1KDfF+l1fpekGT00Z3SS2PLvKy7bPirAPGbvn6SVsCvo8zo70gqnUo45LAZjHe0cFgVBo+V2PbSRsmWGeXqM0amORSchhOZGVgbIrkWG33R7qHjQBt8NvLH0+OKWwVPFm+NIIpgB36MRziBMSI94wsYnnvJgQkn1N3q5HmDbd6Dj+VETOHUgXpbmM+T8PQyEKzs1ufAV4e3B/kaI42TFlLFkQtvikRXRqq1IsHn306+X8f5rJL0bLQxSFQ67l4B28/awdBpdWwJMSHpRxz2hmwI3kLSHg2ygd3gqrqmxzQp7VY08tjFr/AKGtnKQfj2jIoxKIj+wbL++29QZvYRgdrKiX+pgPT/dB/9k="},{"file":"scissors_25.jpg","true":"scissors","pred":"paper","correct":false,"rock":0.262,"paper":0.488,"scissors":0.25,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABQYHBAP/xAApEAACAQIFAwQCAwAAAAAAAAABAgMEEQAFEiExBhNBBxQikTJRcqHx/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AAFGQHF2b7wakihzCE0UUy98C5TVcgbc/rkfeFtXaKUqbgg23FsGch7j5r7tJqpFWLtmONiEe5J+YH5W0i1zpvba+kgKX0vVE0Zp2J1QP22B8HSDb6IwyQT2A3xM/TvN8wqspnbNKP287VsrqTyUIQBb2CuFIYB15Gx+QbDhFWi3OAjFdETUBltvh+9MKI1Wa0MarGLwzQSMFtpO7AsfJIYgfwtcbYk3VHVVBk+UQ5uySVEU+kQKgsXLKWF78C3+YbfQ7rWnquoqLNLNT07FVkVyBYixJ545twTgHrNUlFLk5p4oEU0RGlBoFxPKCTYbkkEk/s4yl60Ke4kajwVctf8AoY1y5hBWVEdJRo0sOW08cE0wB0915JXK3O1wpB2PnjbHSSMMuA//2Q=="},{"file":"scissors_26.jpg","true":"scissors","pred":"paper","correct":false,"rock":0.263,"paper":0.484,"scissors":0.253,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABQYHBAP/xAAqEAACAQIFAwQBBQAAAAAAAAABAgMEEQAFEiExBhNBBxQiUaEycXKR8f/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwABRkahdmv++DUkUNfCaKKZe+BcrquQNufrkf3hbVzFKVNwQbbi2DORdx8192k9WqrEIzHGxCPck/MD9VtItc6QbG19JAUvpeqJojTsTqgftsD4OkEfgjDJBPYDfEz9PM4zCqyids0o/bzmtldSeShCALcAK4UhgHHI2PyVsOEVaLc4CMV0RM4ZSN8P3phRGqzWhjVYheGaCVtNtJ3YMx8khiB/C1+MSbqjqqgyfKIc3ZJKiKfSIFQWLllLDngW/wAw2+h3WtPU9Q0WaWanp2KrIHIFiLEnnjm3BwD3mqSClyc00UCKaIjSg0C4nlBJsNySLk/ZxkL1oU9xI1HjS5a/4GNUmYQVtTHSUaPLDltPHBNMAdPdeSVyt+LhSp2PngWx1kjDLgP/2Q=="},{"file":"scissors_27.jpg","true":"scissors","pred":"paper","correct":false,"rock":0.365,"paper":0.377,"scissors":0.258,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABAUGBwP/xAAoEAACAgEEAQIGAwAAAAAAAAABAgMRBAAFEiExBlETIjJBYaEHI5H/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8ARYRHL6m/3VBLhHOwfhRtTV9ydSyMYpSDYIPtWm2BvceFHmZGWWSHFh+MKRiXUBi5BA49UBRIJvoEXQaj6deRMCOKUEFTQs31p9DPVd6kNs3LGmjWXFk547/NE3INyU9g2Oj1XemiZn50GNZsJM4ZSPm0z27Z03Db8uKbIeOMwj4jR2pTk7L56PIBCwo+D571JepvVW37Ps0e8uHnhlCjHVBRkLKWXz4FX58frTz+N/XG35227jNOHxsfJx4w4NWrKytfnwaIBPsdBbYeDkbeq4UWOIlg/qETO1xheuJ5Weqruz76Kd80KRIkae3By1/oa74WbJvBk3wxmOHcJXniQrRjDG+DG/qF/jojr7kqaMMug//Z"},{"file":"scissors_28.jpg","true":"scissors","pred":"paper","correct":false,"rock":0.352,"paper":0.37,"scissors":0.278,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABAUGBwP/xAAoEAACAgECBgIBBQAAAAAAAAABAgMRBAAFBhIhMUFREyKhBxUjkbH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8ARYRHOPs396oJcM5+F8UbU1eSdSyM0UpU2CD6rTjb93fGhzch4m+PFjDr0NyfViaode1ULqx7Gg1Dh15EwI4pQQVNCzfTT2Gaq66j9o3GKWCOSKVJY3AZHRgysD2II6EH3pqmZ5vQY1mwkzhlI+2m+17JBue15S5as+OqxvKEtWT+VlHXww5OZSO1g99R3E3FW37Ps8e8OHnimCiBUFGQspZe/YV77fjTz9O+OduydqzsvISSDGyoY0cULV1ZWvzYJFA6C4xoc2I8jF5JAadppWZyfJZmsk+ybJ86Id80KRIsaeuVy1/ga7bdl5G6L+9TlQNwLTmMRFTC7MS0ZNmyAV/3zQLmjDLoP//Z"},{"file":"scissors_30.jpg","true":"scissors","pred":"paper","correct":false,"rock":0.329,"paper":0.382,"scissors":0.289,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAwADAAAAAAAAAAAAAAAABQYHAAIE/8QAKRAAAgIBBAEDAgcAAAAAAAAAAQIDBBEABSExEgYTIlFhByMyQXGRof/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwAFSYeYyzf3pglpG/S9qM4b7k6VkZopSpyCD9MaNbXuq1or9iwZfCrFHIkaRFjIpEhcg45YeCjxGT8h1nQU3068kdCOKUEFTgZOeNHYZgAOdKG07pVtQR2Kbl60oEkLEjJQ8qTjjrHWiqXMDOdBG7sJM4ZSPloztOy1rtK378jTxpVBnCLgJ5yMrIQ2Vb4hDyCPn13lL9TeqqGz7PHvDB54pgogVBgyFlLL30MZ70Y/D713QnoXdwtqYaU1YJKrnHgwIIYYPXlx98aCiWadqjuVmoix/kzPHxK7gYYj9TZZv5Ykn9+dYz3QpEiomOvBy2f8Gttov2d3rR7zaSGOS+8szxrkGMl8hSp5B8WXPPf15x3zRhl0H//Z"},{"file":"scissors_31.jpg","true":"scissors","pred":"paper","correct":false,"rock":0.346,"paper":0.412,"scissors":0.242,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABQYHBAP/xAArEAACAQIEBQMEAwAAAAAAAAABAgMEEQAFEiEGEyIxQQcUYTJRgZGSodH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AA0RGoXZv3gjzlzCebKVKxuNOhnkHWbarL5JtquN9lv8AewVGaOQg3BBt2tg1kNPHFmU2ZQxN7lk5U1h1Fbi1yewBX6e19++Ao/ClVM9K8MkTqlPJytbHZm0qxA+ArJ+8MkM4AG+Iz6PLmtJJnM+a05gaqquaApDRFyz8wxnUW0lt9JA0kkXJuBS463bvgI1WxE1AZSOrD9wjEM1lzCoBsI8ti12FwXRCjAfw1X+fziKcfcarklBQ1VBCtTJWjXCXBChAASSNjfqFh/ljQfQXjWPNaWu96EpZJqWRGUG/1RkC32uR8+cA75otR7TJ2iihCtRbADTtzpRc/JtjKz1oBDqii+xVyb/0MdFqKeSaRqaQPS0kaR1Mr3Ail0BtPa1rEm9/B2841yxhhgP/2Q=="},{"file":"scissors_32.jpg","true":"scissors","pred":"paper","correct":false,"rock":0.339,"paper":0.41,"scissors":0.251,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABQYHAQL/xAArEAACAQMDAgQGAwAAAAAAAAABAgMEERIAITEFBhMiQVEHFGGBkaEyQnH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AA0RGQ8zfnRn5aTqbyUNOrXhpfHkZm2AzVB97t+9LqM0cpBuCDbcW0Z6PArdYFc8MjTxQqqi58qtkcgp2F/cC5B5toKT2tUsaIwtllBJ4bX98Vaw+zL+dMcM9gN9SP4Vz9djj6lL1wgGaqLxizbNaz4MScorgY+q7qbY2FAjrdhvoI1XRFpwykb6eOxqVq+SqnKKoh6YEezbs6FtzfjyFbW9uL8x7vrvSHonTqOso4lqZK0BoMrhcLA5Ec/2G23P006/A/vaKtM1RWwiEVFM8UkaNySjLf6X/AFbk20DpK9ZIYAqqUjiVY1PlCrzwB6kk/wCk61nrQD4iRqL7FXLX/Q1xTV6Vs81RQIklDSvHSzPluJBGpZr/AMcb39bmz7DEZE5Ywy6D/9k="},{"file":"scissors_5.jpg","true":"scissors","pred":"paper","correct":false,"rock":0.276,"paper":0.494,"scissors":0.23,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABQYHAwT/xAAsEAACAgEDAgQEBwAAAAAAAAABAgMRBAASIQUGEyIxQQdRYXEIFCOBkaHx/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AAOGRuFs386OviDqOE0URplbb5ifkDf25q/odK6OYpCpsEGuRWjXazzxT5LmeIY7MCkZA3k3bHcRwAZB5RxzZskbQp/bUki9NhV722QpuwaJU19ipH3B0wQTgAc6lXwp63lZnba/n3ikyIZ5I3lQhfEN7izJ6xv5qZD6EH2I08x5oq70EYzoi0+5SOdULsLpMEzZOMpDJJ04ZKtJyI3oq3JA53qaq+CPrqQ90d1YHR+kQ9XKSZEU+0QKgovuUsLv0Ff5qi/h57sxet5QDl8VJoZIaarUOPPX03AG/fQH+sBz1MyYkSLHJHE+26CkxqSOB871iXzQp8RY1APBVy1/0NbzZMU3UZfAPiRQGPGkcWf1ViiJUCvQBxz7V++ul4wy6D//2Q=="},{"file":"scissors_6.jpg","true":"scissors","pred":"paper","correct":false,"rock":0.248,"paper":0.522,"scissors":0.23,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAwADAAAAAAAAAAAAAAAABQYHAgME/8QALBAAAgIBAwIEBAcAAAAAAAAAAQIDEQQABRIGEwchMWEyQYGRIkNRUnHB8f/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwABhEBxbN99GzjDc8ebGgJLRBObXYBa6H80p0tK5ilKmwQf0rRvp3vJnTZQkPZlUBlAUAuK42fiY13KqgAWuzWgpvTcsibfHFKGBQ0LPy9vbTDBOAB56mHhxvWRl7TKMqcM0eXLURjZHxg7dwxNagEqZCOSlgwog+dBzizQB66CL50XKfkpHnqieHe2Y2ZNCIY05y7bL3hy/Mjd1vifT8LRn31IOqOqsDZ9oh3dlkyIp+IgVBRcspYXfoK/zTt4A9ZYW4b9j5U0Zgx5h23DACiQA3z8wf60DNkiRsvnjxpxZUJtz8XEcj9TZ+usueaAe4kaAehVy1/cCtbe4k2UWwTHPjxFIch+RuOTgSVqiP2kWQTbeQ4jl1vGGXQf/9k="},{"file":"scissors_7.jpg","true":"scissors","pred":"paper","correct":false,"rock":0.25,"paper":0.511,"scissors":0.24,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABQYHAgT/xAArEAACAgEDAwIFBQEAAAAAAAABAgMRBAAFEhMhMQYHMkFRYZEUInGBwfH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AAYRAcWzfnRs4w3LHmxoCS0QTm12AWuh/NKdLSuYpSpuwfpWjXp3rpnTZQlPRlWmUBFBYceIJ+JjXUIqgATdmtBTvTcsiYEcUoYFDQs/L7fbTDBOAB31L/bfeJ8rapv1M5Z0y5aiKMrY3M9QxNagEqXI5KWVuxvuQHSLNAHnQRfOi5T8lI76oft5tuNlzRdGNOUu2S9cXdSRu63xPj9rRtdd/OpD6o9VYGz7TDu7LJkRT8RAqCi5ZSwu/Ar/mnb2C9Y4W477BkzRmDGmHTcNQIJADdwe4P+aBmyRK2Xzx404siE25+LiLPcfM2f71rnmgHqJGgHgq5a/yBWtrKs+YzYIjmxoCkE8nOuEvT5Fao/VCLIu28ce/a8YZdB//2Q=="},{"file":"scissors_8.jpg","true":"scissors","pred":"paper","correct":false,"rock":0.258,"paper":0.525,"scissors":0.218,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAABQYHAgT/xAArEAACAQIGAQMCBwAAAAAAAAABAgMEEQAFEhMhMQYHQWFRkSIyM3GBofH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AAURAcXZvvg4aUZnTTU8DDVDo1kv0X1WHd+kP9fXCyrmKUqbgg+4tg344syV09YKhtqUBTGLAFgBp75JtudWFjzewsFN8alkWgSGUMChtyf26+MMME4AHOJh6c5zVVeUyisnDNFVy6Ytoo9MHbdMTXUBirSMNQLBhYg+wc4q0Ad4CL10RafUpHOKJ6e5dTVckOzHGHkyyXfFz+pG7rq0nr8LRn57xIPKPKqDJ8phzdkkqIp9IgVBYuWUsL36Fv8w7egPmVDmGfQVM8ZgpphtyB7C1wA3R5B+vxgGWoEpq9dNEgVlQm7n82kXPXubn+cb11gVtxUQDoq5a/wBwLY3HMtTVu1CElpqd0p6iQtYpLt6iAACCLFLXIvdutPPa8YZeMB//2Q=="},{"file":"scissors_9.jpg","true":"scissors","pred":"paper","correct":false,"rock":0.245,"paper":0.511,"scissors":0.244,"img_b64":"/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAGQAAAwADAAAAAAAAAAAAAAAABQYHAgME/8QALBAAAgECAwYFBQEAAAAAAAAAAQIDBBEAEiEFBhMiMUEHFFGBkUJhYnGh8f/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwABREBxdm+cGzAm0oZqSBxxIQha79M2a2l/xPyPXC0rmKUqbgg9xbB7d1pEqpakT3ikXKYmYW4nLYqOt8qN36E6HTKFI3YqG8iIHzBomykH9A6exGGOCcADXEt8NNt11bsupO0ZlaaOskUR5Cr04Nn4TkgZihcqGFwVCkHsHaKtAHXARetiLT5lIF8UHw2oKapmgWNIuLLQTiYC+bOjsA1joOR0I9bE2xI96N6qDY+yIdrsklRFPlECoLFyylhe/QW/zDt4Ab60lbvBTVkqGCnlskivYWOgPfUH1+2AY5BL5jNTxpYhb8562Fz7m598bS9YFPEVEHYq5a/8GM45Unq3NE0c8EDJDUPdgY5MmYr0IP025r6toLC/a8YZcB//2Q=="}];
+let filtered = RESULTS;
+let idx = 0;
+
+function computeAccuracy() {
+  const overall = RESULTS.filter(r => r.correct).length;
+  const rock = RESULTS.filter(r => r.true === 'rock');
+  const paper = RESULTS.filter(r => r.true === 'paper');
+  const scissors = RESULTS.filter(r => r.true === 'scissors');
+  document.getElementById('overall-acc').textContent = `${overall}/${RESULTS.length}`;
+  document.getElementById('rock-acc').textContent = `${rock.filter(r=>r.correct).length}/${rock.length}`;
+  document.getElementById('paper-acc').textContent = `${paper.filter(r=>r.correct).length}/${paper.length}`;
+  document.getElementById('scissors-acc').textContent = `${scissors.filter(r=>r.correct).length}/${scissors.length}`;
+}
+
+function render() {
+  const r = filtered[idx];
+  document.getElementById('g-img').src = 'data:image/jpeg;base64,' + r.img_b64;
+  document.getElementById('g-filename').textContent = r.file;
+  document.getElementById('g-true').textContent = r.true;
+  document.getElementById('g-pred').textContent = r.pred;
+  const badge = document.getElementById('g-badge');
+  badge.innerHTML = r.correct ? '<span class="badge-ok">CORRECT</span>' : '<span class="badge-wrong">WRONG</span>';
+  ['rock','paper','scissors'].forEach(c => {
+    const pct = Math.round(r[c] * 100);
+    document.getElementById('bar-' + c).style.width = pct + '%';
+    document.getElementById('pct-' + c).textContent = pct + '%';
+  });
+  document.getElementById('g-counter').textContent = `${idx + 1} / ${filtered.length}`;
+}
+
+document.getElementById('g-prev').addEventListener('click', () => {
+  idx = (idx - 1 + filtered.length) % filtered.length;
+  render();
+});
+document.getElementById('g-next').addEventListener('click', () => {
+  idx = (idx + 1) % filtered.length;
+  render();
+});
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const f = btn.dataset.filter;
+    filtered = f === 'all' ? RESULTS : RESULTS.filter(r => r.true === f);
+    idx = 0;
+    render();
+  });
+});
+
+computeAccuracy();
+render();
+</script>
+</body>
+</html>
